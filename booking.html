@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>StayFinder — Booking</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#0f1a2f; --muted:#9fb1c8; --text:#eaf2ff;
+    --accent:#7dd3fc; --accent2:#34d399; --radius:16px; --shadow:0 18px 44px rgba(2,6,23,.6);
+    --ff: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--ff); background:linear-gradient(180deg,#08142a,#0b1220); color:var(--text)}
+  header{padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.06)}
+  .container{max-width:980px; margin:0 auto; padding:16px}
+  .brand{font-weight:900} .brand span{color:var(--accent)}
+  .grid{display:grid; grid-template-columns:1fr 360px; gap:14px}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow)}
+  .summaryRow{display:flex; gap:10px; align-items:center}
+  .summaryRow img{width:120px; height:90px; object-fit:cover; border-radius:12px}
+  label{font-size:12px; color:var(--muted)}
+  input, select, textarea{
+    width:100%; background:rgba(255,255,255,.04); color:var(--text); border:1px solid rgba(255,255,255,.08);
+    border-radius:12px; padding:10px; outline:0;
+  }
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .btn{border:0; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer; background:linear-gradient(90deg,var(--accent), var(--accent2)); color:#05222a; width:100%}
+  .muted{color:var(--muted)}
+  .price{font-weight:900; font-size:20px}
+  .note{font-size:12px; color:var(--muted); margin-top:6px}
+  .ok{background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.25); color:#9ff2cf; padding:10px; border-radius:12px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <div class="brand">Stay<span>Finder</span></div>
+  </div>
+</header>
+ 
+<main class="container grid">
+  <!-- Left: Guest + payment (mock) -->
+  <section class="panel">
+    <h3 style="margin-top:0">Complete your booking</h3>
+    <div id="hotelSummary" class="summaryRow" style="margin:10px 0 14px"></div>
+ 
+    <form id="bookForm">
+      <div class="two">
+        <div>
+          <label>First name</label>
+          <input required id="firstName" placeholder="Ali">
+        </div>
+        <div>
+          <label>Last name</label>
+          <input required id="lastName" placeholder="Khan">
+        </div>
+      </div>
+ 
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Email</label>
+          <input type="email" required id="email" placeholder="you@example.com">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="tel" id="phone" placeholder="+92 ...">
+        </div>
+      </div>
+ 
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label>Guests</label>
+          <select id="guests">
+            <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5+</option>
+          </select>
+        </div>
+        <div>
+          <label>Room type</label>
+          <select id="roomType">
+            <option value="Standard">Standard</option>
+            <option value="Deluxe">Deluxe</option>
+            <option value="Suite">Suite</option>
+          </select>
+        </div>
+      </div>
+ 
+      <div style="margin-top:10px">
+        <label>Special requests (optional)</label>
+        <textarea id="notes" rows="3" placeholder="Late check-in, high floor, etc."></textarea>
+      </div>
+ 
+      <div class="ok" style="margin:12px 0; font-size:14px">
+        Secure hold: No payment collected in this demo. Your reservation will be stored locally and a confirmation will display.
+      </div>
+ 
+      <button class="btn" type="submit">Confirm Booking</button>
+      <div id="confirmBox" style="display:none; margin-top:10px"></div>
+    </form>
+  </section>
+ 
+  <!-- Right: Price breakdown -->
+  <aside class="panel" id="priceBox">
+    <h4 style="margin-top:0">Price details</h4>
+    <div class="muted" id="stayDates"></div>
+    <div style="margin-top:10px">
+      <div class="price" id="nightly"></div>
+      <div class="muted" id="taxes"></div>
+      <div style="margin-top:8px; border-top:1px dashed rgba(255,255,255,.08); padding-top:8px">
+        <div style="display:flex; justify-content:space-between">
+          <div>Total</div>
+          <div class="price" id="total"></div>
+        </div>
+      </div>
+      <div class="note">Prices shown are for demo purposes only.</div>
+      <div style="margin-top:10px; display:flex; gap:8px">
+        <button class="btn" type="button" onclick="goBack()">⬅ Back</button>
+        <button class="btn" type="button" onclick="home()">🏠 Home</button>
+      </div>
+    </div>
+  </aside>
+</main>
+ 
+<script>
+  // Load selected hotel & search context
+  const hotels = JSON.parse(localStorage.getItem('sf_hotels')||'[]');
+  const hotelId = sessionStorage.getItem('sf_lastHotel');
+  const search = JSON.parse(sessionStorage.getItem('sf_lastSearch')||'null');
+ 
+  let h = hotels.find(x=>x.id===hotelId) || hotels[0];
+ 
+  // If no context dates, default to today + 1 night
+  let ci = search?.ci || new Date().toISOString().slice(0,10);
+  let co = search?.co || new Date(Date.now()+86400000).toISOString().slice(0,10);
+  document.getElementById('guests').value = (search?.g || '2');
+ 
+  // Summary
+  const sum = document.getElementById('hotelSummary');
+  sum.innerHTML = `
+    <img src="${h.img}" alt="${h.name}">
+    <div>
+      <div style="font-weight:900">${h.name}</div>
+      <div class="muted">${h.city} • ${h.type} • ★ ${h.rating} (${h.reviews})</div>
+      <div class="muted" style="margin-top:4px">Check-in ${ci} → Check-out ${co}</div>
+    </div>
+  `;
+ 
+  // Pricing calc
+  function nightsBetween(a,b){ return Math.max(1, Math.round((new Date(b)-new Date(a))/(1000*60*60*24))); }
+  const nights = nightsBetween(ci, co);
+  const nightly = h.price;
+  const subtotal = nightly * nights;
+  const tax = Math.round(subtotal * 0.1);
+  const total = subtotal + tax;
+ 
+  document.getElementById('stayDates').textContent = `${nights} night(s) • ${ci} → ${co}`;
+  document.getElementById('nightly').textContent = `$${nightly}/night × ${nights} = $${subtotal}`;
+  document.getElementById('taxes').textContent = `Taxes & fees (est.): $${tax}`;
+  document.getElementById('total').textContent = `$${total}`;
+ 
+  // Booking submit -> localStorage “DB”
+  document.getElementById('bookForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const booking = {
+      id: 'BKG-' + Math.random().toString(36).slice(2,8).toUpperCase(),
+      hotelId: h.id, hotelName: h.name, city: h.city,
+      checkin: ci, checkout: co, nights,
+      roomType: document.getElementById('roomType').value,
+      guests: document.getElementById('guests').value,
+      pricePerNight: nightly, subtotal, tax, total,
+      firstName: document.getElementById('firstName').value.trim(),
+      lastName: document.getElementById('lastName').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      notes: document.getElementById('notes').value.trim(),
+      createdAt: new Date().toISOString()
+    };
+ 
+    if(!booking.firstName || !booking.lastName || !booking.email){ alert('Please complete required fields.'); return; }
+ 
+    // Save to bookings table in localStorage
+    const table = JSON.parse(localStorage.getItem('sf_bookings')||'[]');
+    table.push(booking);
+    localStorage.setItem('sf_bookings', JSON.stringify(table));
+ 
+    // Confirmation UI
+    const box = document.getElementById('confirmBox');
+    box.style.display='block';
+    box.className='ok';
+    box.innerHTML = `
+      <div style="font-weight:800">Booking confirmed!</div>
+      <div class="muted" style="margin-top:6px">Reference: ${booking.id}</div>
+      <div class="muted">We emailed <strong>${booking.email}</strong> (demo only). You can screenshot this page.</div>
+      <div style="display:flex; gap:8px; margin-top:10px">
+        <button class="btn" type="button" onclick="home()">Go to Home</button>
+        <button class="btn" type="button" onclick="viewResults()">Back to Results</button>
+      </div>
+    `;
+    // Optional: clear selection
+    sessionStorage.removeItem('sf_lastHotel');
+  });
+ 
+  // Navigation helpers
+  function goBack(){ history.back(); }
+  function home(){ window.location.href='index.html'; }
+  function viewResults(){
+    const s = search ? new URLSearchParams(search).toString() : '';
+    window.location.href = 'results.html' + (s?('?'+s):'');
+  }
+  window.goBack = goBack; window.home = home; window.viewResults = viewResults;
+</script>
+</body>
+</html>
+ 
