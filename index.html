@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>StayFinder — Book Hotels</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#0e1628; --card:#0f1a2f; --muted:#a8b3c7; --text:#eaf2ff;
+    --accent:#7dd3fc; --accent2:#34d399; --warn:#fbbf24; --radius:18px;
+    --shadow:0 20px 50px rgba(2,6,23,.65);
+    --ff: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--ff); background:linear-gradient(180deg,#ffe4e1); color:var(--text)}
+  header.hero{
+    padding:28px 18px 40px; background:
+      radial-gradient(900px 500px at 10% 10%, rgba(52,211,153,.08), transparent 20%),
+      radial-gradient(800px 500px at 90% 15%, rgba(125,211,252,.10), transparent 25%),
+      linear-gradient(180deg,#08142a, #0b1426);
+    border-bottom:1px solid rgba(255,255,255,.05);
+  }
+  .container{max-width:1120px; margin:0 auto}
+  .topbar{display:flex; justify-content:space-between; align-items:center; gap:12px}
+  .brand{font-weight:900; letter-spacing:.4px}
+  .brand span{color:var(--accent)}
+  .searchCard{
+    margin-top:20px; background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px;
+  }
+  .grid{display:grid; grid-template-columns:2fr repeat(2,1fr) 1fr 160px; gap:10px}
+  .field{display:flex; flex-direction:column; gap:6px}
+  label{font-size:12px; color:var(--muted)}
+  input, select{
+    background:rgba(255,255,255,.04); color:var(--text); border:1px solid rgba(255,255,255,.08);
+    border-radius:12px; padding:12px 12px; outline:0;
+  }
+  .btn{
+    border:0; padding:12px 16px; border-radius:12px; font-weight:800; cursor:pointer;
+    background:linear-gradient(90deg,var(--accent), var(--accent2)); color:#05222a; box-shadow:0 10px 28px rgba(52,211,153,.18);
+  }
+  .filters{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+  .chip{border:1px solid rgba(255,255,255,.08); color:var(--muted); background:rgba(255,255,255,.03); padding:8px 10px; border-radius:999px; font-size:13px}
+  .section{padding:20px 18px}
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.06); border-radius:16px; overflow:hidden; box-shadow:var(--shadow)
+  }
+  .card img{width:100%; height:180px; object-fit:cover; display:block}
+  .card .p{padding:12px}
+  .row{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .price{font-weight:900}
+  .muted{color:var(--muted)}
+  .actions{display:flex; gap:10px}
+  .smallbtn{border:0; padding:8px 10px; border-radius:10px; font-weight:700; cursor:pointer; background:rgba(125,211,252,.15); color:#04212a}
+  footer{padding:20px 18px; color:var(--muted); border-top:1px solid rgba(255,255,255,.05)}
+  @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr 1fr} .cards{grid-template-columns:1fr 1fr} }
+  @media (max-width:680px){ .grid{grid-template-columns:1fr} .cards{grid-template-columns:1fr} .btn{width:100%} }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">Stay<span>Finder</span></div>
+      <div class="muted" style="font-size:13px">Hotels • Apartments • Resorts</div>
+    </div>
+ 
+    <div class="searchCard">
+      <form id="searchForm">
+        <div class="grid">
+          <div class="field">
+            <label>Destination</label>
+            <input type="text" id="dest" placeholder="e.g., Karachi, Lahore, Dubai" required>
+          </div>
+          <div class="field">
+            <label>Check-in</label>
+            <input type="date" id="checkin" required>
+          </div>
+          <div class="field">
+            <label>Check-out</label>
+            <input type="date" id="checkout" required>
+          </div>
+          <div class="field">
+            <label>Guests</label>
+            <select id="guests">
+              <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5+</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button class="btn" type="submit">Search Hotels</button>
+          </div>
+        </div>
+        <div class="filters">
+          <div class="chip">Flexible dates</div>
+          <div class="chip">Free cancellation</div>
+          <div class="chip">Breakfast included</div>
+          <div class="chip">Pay at hotel</div>
+        </div>
+      </form>
+    </div>
+  </div>
+</header>
+ 
+<section class="section">
+  <div class="container">
+    <h3 style="margin:0 0 10px">Featured stays</h3>
+    <div class="cards" id="featuredGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</section>
+ 
+<footer>
+  <div class="container">
+    © <span id="year"></span> StayFinder — Demo hotel booking platform (HTML/CSS/JS only).
+  </div>
+</footer>
+ 
+<script>
+  // --- Demo hotel dataset (also used by results/booking pages via localStorage) ---
+  const HOTELS = [
+    {id:'h1', name:'Ocean Vista Resort', city:'Karachi', rating:4.6, reviews:812, price:120, type:'Resort',
+     amenities:['Pool','Breakfast','Wi-Fi','Sea View'], img:'https://images.unsplash.com/photo-1501117716987-c8e3f4f1f3d7?q=80&w=1200&auto=format&fit=crop'},
+    {id:'h2', name:'Liberty Grand Hotel', city:'Lahore', rating:4.4, reviews:1043, price:88, type:'Hotel',
+     amenities:['Wi-Fi','Gym','Parking'], img:'https://images.unsplash.com/photo-1551776235-dde6d4829808?q=80&w=1200&auto=format&fit=crop'},
+    {id:'h3', name:'Creekside Apartments', city:'Karachi', rating:4.2, reviews:534, price:60, type:'Apartment',
+     amenities:['Kitchen','Wi-Fi','AC'], img:'https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=1200&auto=format&fit=crop'},
+    {id:'h4', name:'Desert Rose Inn', city:'Dubai', rating:4.7, reviews:2201, price:155, type:'Hotel',
+     amenities:['Pool','Spa','Wi-Fi','Breakfast'], img:'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=1200&auto=format&fit=crop'},
+    {id:'h5', name:'Pearl City Suites', city:'Lahore', rating:4.0, reviews:380, price:54, type:'Apartment',
+     amenities:['Kitchen','Wi-Fi'], img:'https://images.unsplash.com/photo-1505691723518-36a5ac3b2d95?q=80&w=1200&auto=format&fit=crop'},
+    {id:'h6', name:'Palm Court Boutique', city:'Dubai', rating:4.9, reviews:742, price:210, type:'Boutique',
+     amenities:['Spa','Breakfast','Wi-Fi','Gym'], img:'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1200&auto=format&fit=crop'}
+  ];
+  // Make dataset available to other pages (simple "DB")
+  localStorage.setItem('sf_hotels', JSON.stringify(HOTELS));
+ 
+  // Featured: pick 3
+  const featured = [HOTELS[3], HOTELS[0], HOTELS[5]];
+  const grid = document.getElementById('featuredGrid');
+  featured.forEach(h=>{
+    const el = document.createElement('div');
+    el.className='card';
+    el.innerHTML = `
+      <img src="${h.img}" alt="${h.name}">
+      <div class="p">
+        <div style="font-weight:800">${h.name}</div>
+        <div class="muted" style="margin:6px 0">${h.city} • ${h.type} • ★ ${h.rating} (${h.reviews})</div>
+        <div class="row">
+          <div class="price">$${h.price}/night</div>
+          <div class="actions">
+            <button class="smallbtn" onclick="viewCity('${h.city}')">View ${h.city}</button>
+            <button class="smallbtn" onclick="bookHotel('${h.id}')">Book</button>
+          </div>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  });
+ 
+  function viewCity(city){
+    const today = new Date();
+    const ci = today.toISOString().slice(0,10);
+    const co = new Date(today.getTime()+86400000).toISOString().slice(0,10);
+    const params = new URLSearchParams({q:city, ci, co, g:'2'});
+    window.location.href = 'results.html?'+params.toString();
+  }
+  function bookHotel(id){
+    // stash a minimal "intent", booking page will expand
+    sessionStorage.setItem('sf_lastHotel', id);
+    window.location.href = 'booking.html';
+  }
+ 
+  // search form -> results.html
+  document.getElementById('searchForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const q = document.getElementById('dest').value.trim();
+    const ci = document.getElementById('checkin').value;
+    const co = document.getElementById('checkout').value;
+    const g = document.getElementById('guests').value;
+    if(!q || !ci || !co){ alert('Please select destination and dates.'); return; }
+    const params = new URLSearchParams({q, ci, co, g});
+    window.location.href = 'results.html?'+params.toString();
+  });
+ 
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
+ 
