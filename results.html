@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>StayFinder — Results</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#0f1a2f; --panel:#0d1730; --muted:#9fb1c8; --text:#eaf2ff;
+    --accent:#7dd3fc; --accent2:#34d399; --radius:16px; --shadow:0 18px 44px rgba(2,6,23,.6);
+    --ff: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--ff); background:linear-gradient(180deg,#08142a,#0b1220); color:var(--text)}
+  header{padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.06); position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(8,20,42,.7)}
+  .container{max-width:1120px; margin:0 auto}
+  .row{display:flex; gap:12px; align-items:center; justify-content:space-between}
+  .brand{font-weight:900} .brand span{color:var(--accent)}
+  .pill{font-size:13px; color:var(--muted)}
+  .layout{display:grid; grid-template-columns:280px 1fr; gap:14px; padding:16px}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow)}
+  label{font-size:12px; color:var(--muted)}
+  input[type="range"]{width:100%}
+  .filter-group{display:flex; flex-direction:column; gap:8px; margin-bottom:12px}
+  .filters-inline{display:flex; gap:10px; flex-wrap:wrap}
+  select{background:rgba(255,255,255,.04); color:var(--text); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px}
+  .list{display:grid; grid-template-columns:1fr; gap:12px}
+  .card{display:grid; grid-template-columns:240px 1fr 160px; gap:12px; align-items:stretch;
+    background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.06); border-radius:16px; overflow:hidden; box-shadow:var(--shadow)}
+  .card img{width:100%; height:180px; object-fit:cover}
+  .meta{color:var(--muted)}
+  .amen{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .badge{border:1px solid rgba(255,255,255,.08); color:var(--muted); background:rgba(255,255,255,.03); padding:6px 8px; border-radius:999px; font-size:12px}
+  .price{font-weight:900; font-size:20px}
+  .btn{border:0; padding:10px 12px; border-radius:12px; font-weight:800; cursor:pointer; background:linear-gradient(90deg,var(--accent), var(--accent2)); color:#05222a}
+  @media (max-width:980px){ .layout{grid-template-columns:1fr} .card{grid-template-columns:1fr} .card img{height:200px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <div class="row">
+      <div class="brand">Stay<span>Finder</span></div>
+      <div id="queryInfo" class="pill"></div>
+    </div>
+  </div>
+</header>
+ 
+<main class="container layout">
+  <!-- Filters -->
+  <aside class="panel">
+    <h4 style="margin:0 0 8px">Filters</h4>
+    <div class="filter-group">
+      <label>Price range: <span id="priceLabel"></span></label>
+      <input type="range" id="priceMin" min="20" max="300" value="20">
+      <input type="range" id="priceMax" min="20" max="300" value="250">
+    </div>
+ 
+    <div class="filter-group">
+      <label>Minimum rating</label>
+      <select id="minRating">
+        <option value="0">Any</option>
+        <option value="3.5">3.5+</option>
+        <option value="4.0">4.0+</option>
+        <option value="4.5">4.5+</option>
+      </select>
+    </div>
+ 
+    <div class="filter-group">
+      <label>Property type</label>
+      <div class="filters-inline">
+        <label><input type="checkbox" class="typeChk" value="Hotel" checked> Hotel</label>
+        <label><input type="checkbox" class="typeChk" value="Resort" checked> Resort</label>
+        <label><input type="checkbox" class="typeChk" value="Apartment" checked> Apartment</label>
+        <label><input type="checkbox" class="typeChk" value="Boutique" checked> Boutique</label>
+      </div>
+    </div>
+ 
+    <div class="filter-group">
+      <button class="btn" id="applyBtn">Apply Filters</button>
+    </div>
+  </aside>
+ 
+  <!-- Results -->
+  <section>
+    <div class="panel" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px">
+      <div class="pill" id="countText"></div>
+      <div>
+        <label for="sortSel" style="margin-right:6px">Sort</label>
+        <select id="sortSel">
+          <option value="reco">Recommended</option>
+          <option value="priceAsc">Price: Low to High</option>
+          <option value="priceDesc">Price: High to Low</option>
+          <option value="ratingDesc">Best Rated</option>
+        </select>
+      </div>
+    </div>
+    <div id="list" class="list"></div>
+  </section>
+</main>
+ 
+<script>
+  const params = new URLSearchParams(location.search);
+  const q = (params.get('q')||'').toLowerCase();
+  const ci = params.get('ci');
+  const co = params.get('co');
+  const g = params.get('g')||'2';
+  document.getElementById('queryInfo').textContent = `Destination: ${params.get('q')||'All'} • ${ci||'--'} → ${co||'--'} • Guests: ${g}`;
+ 
+  const hotels = JSON.parse(localStorage.getItem('sf_hotels')||'[]');
+  // Base results: filter by city match (contains) — simple demo
+  let base = hotels.filter(h => h.city.toLowerCase().includes(q));
+ 
+  // UI elements
+  const priceMin = document.getElementById('priceMin');
+  const priceMax = document.getElementById('priceMax');
+  const priceLabel = document.getElementById('priceLabel');
+  const minRating = document.getElementById('minRating');
+  const typeChks = Array.from(document.querySelectorAll('.typeChk'));
+  const listEl = document.getElementById('list');
+  const countText = document.getElementById('countText');
+  const sortSel = document.getElementById('sortSel');
+ 
+  function applyFilters(){
+    const minP = +priceMin.value, maxP = +priceMax.value;
+    const minR = +minRating.value;
+    const types = typeChks.filter(c=>c.checked).map(c=>c.value);
+    let res = base.filter(h => h.price>=minP && h.price<=maxP && h.rating>=minR && types.includes(h.type));
+    const sortMode = sortSel.value;
+    if(sortMode==='priceAsc') res.sort((a,b)=>a.price-b.price);
+    else if(sortMode==='priceDesc') res.sort((a,b)=>b.price-a.price);
+    else if(sortMode==='ratingDesc') res.sort((a,b)=>b.rating-a.rating);
+    else res.sort((a,b)=> (b.rating*10 - a.rating*10) + (a.price-b.price)/50); // simple reco
+ 
+    render(res);
+  }
+ 
+  function render(items){
+    listEl.innerHTML='';
+    countText.textContent = `${items.length} place(s) found`;
+    items.forEach(h=>{
+      const el = document.createElement('div');
+      el.className='card';
+      el.innerHTML = `
+        <img src="${h.img}" alt="${h.name}">
+        <div style="padding:12px">
+          <div style="display:flex; justify-content:space-between; gap:8px">
+            <div style="font-weight:900">${h.name}</div>
+            <div>★ ${h.rating} <span class="meta">(${h.reviews})</span></div>
+          </div>
+          <div class="meta" style="margin:6px 0">${h.city} • ${h.type}</div>
+          <div class="amen">${h.amenities.map(a=>`<span class="badge">${a}</span>`).join('')}</div>
+        </div>
+        <div style="padding:12px; display:flex; flex-direction:column; justify-content:space-between; align-items:end">
+          <div class="price">$${h.price}<span class="meta">/night</span></div>
+          <div>
+            <button class="btn" onclick="book('${h.id}')">Book</button>
+          </div>
+        </div>`;
+      listEl.appendChild(el);
+    });
+  }
+ 
+  function syncPriceLabel(){
+    const a = Math.min(+priceMin.value, +priceMax.value);
+    const b = Math.max(+priceMin.value, +priceMax.value);
+    priceMin.value=a; priceMax.value=b;
+    priceLabel.textContent = `$${a} – $${b}`;
+  }
+ 
+  window.book = function(id){
+    sessionStorage.setItem('sf_lastHotel', id);
+    sessionStorage.setItem('sf_lastSearch', JSON.stringify({q:params.get('q'), ci, co, g}));
+    window.location.href = 'booking.html';
+  }
+ 
+  // init ranges to dataset min/max
+  const allP = hotels.map(h=>h.price);
+  priceMin.value = Math.min(...allP);
+  priceMax.value = Math.max(...allP);
+  syncPriceLabel();
+ 
+  priceMin.addEventListener('input', ()=>{ syncPriceLabel(); applyFilters(); });
+  priceMax.addEventListener('input', ()=>{ syncPriceLabel(); applyFilters(); });
+  minRating.addEventListener('change', applyFilters);
+  typeChks.forEach(c=>c.addEventListener('change', applyFilters));
+  document.getElementById('applyBtn').addEventListener('click', applyFilters);
+  sortSel.addEventListener('change', applyFilters);
+ 
+  // first render
+  applyFilters();
+</script>
+</body>
+</html>
